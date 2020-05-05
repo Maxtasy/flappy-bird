@@ -1,3 +1,5 @@
+//TODO: Random background or button to switch background
+
 const cvs = document.querySelector(".game-canvas");
 const ctx = cvs.getContext("2d");
 
@@ -9,30 +11,51 @@ const RADIAN_CONVERSION = Math.PI / 180;
 const sprite = new Image();
 sprite.src = "img/sprite.png";
 
+// Load sounds
+const scoreSound = new Audio();
+scoreSound.src = "audio/sfx_point.wav";
+const flapSound = new Audio();
+flapSound.src = "audio/sfx_flap.wav";
+const hitSound = new Audio();
+hitSound.src = "audio/sfx_hit.wav";
+const swooshingSound = new Audio();
+swooshingSound.src = "audio/sfx_swooshing.wav";
+const deathSound = new Audio();
+deathSound.src = "audio/sfx_die.wav";
+
 // Score object
 const score = {
     value: 0,
-    best: 0,
-    x: 185,
+    best: parseInt(localStorage.getItem("best")) || 0,
+    vX: 185,
     vY: 95,
+    bX: 185,
     bY: 135,
 
-    update() {
-        if (gameState.current === gameState.over) {
-            if (this.value > this.best) this.best = this.value;
-        }
-        if (gameState.current === gameState.getReady) {
-            this.value = 0;
-        }
+    reset() {
+        this.value = 0;
     },
 
     draw() {
-        if (gameState.current === gameState.over) {
-            ctx.fillStyle = "red"
+        ctx.fillStyle = "white";
+        ctx.strokeStyle = "#000";
+        ctx.lineWidth = 1;
+        ctx.textAlign = "center";
+
+        if (gameState.current === gameState.game) {
+            this.vX = cvs.width / 2;
+            this.vY = 50;
+            ctx.font = "35px Teko";
+            ctx.fillText(this.value, this.vX, this.vY);
+            ctx.strokeText(this.value, this.vX, this.vY);
+        } else if (gameState.current === gameState.over) {
+            this.vX = 185;
+            this.vY = 95;
             ctx.font = "25px Teko";
-            ctx.textAlign = "center";
-            ctx.fillText(this.value, gameOver.x + this.x, gameOver.y + this.vY);
-            ctx.fillText(this.best, gameOver.x + this.x, gameOver.y + this.bY);
+            ctx.fillText(this.value, gameOver.x + this.vX, gameOver.y + this.vY);
+            ctx.strokeText(this.value, gameOver.x + this.vX, gameOver.y + this.vY);
+            ctx.fillText(this.best, gameOver.x + this.bX, gameOver.y + this.bY);
+            ctx.strokeText(this.best, gameOver.x + this.bX, gameOver.y + this.bY);
         }
     }
 }
@@ -102,17 +125,8 @@ const bird = {
     jump: 6,
     rotation: 0,
 
-    draw() {
-        let bird = this.animation[this.frame];
-        ctx.save();
-        ctx.translate(this.x, this.y);
-        ctx.rotate(this.rotation);
-        ctx.drawImage(sprite, bird.sX, bird.sY, this.w, this.h, -this.w / 2, -this.h / 2, this.w, this.h);
-        ctx.restore();
-    },
-
-    flap() {
-        this.speed -= this.jump;
+    speedReset() {
+        this.speed = 0;
     },
 
     update() {
@@ -130,8 +144,11 @@ const bird = {
                 this.y = cvs.height - foreground.h - this.h / 2;
                 if (gameState.current === gameState.game) {
                     gameState.current = gameState.over;
+                    deathSound.play();
                 }
             }
+
+            //TODO: Stop bird from flying over pipes
 
             if (this.speed >= this.jump) {
                 this.rotation = 90 * RADIAN_CONVERSION;
@@ -146,6 +163,19 @@ const bird = {
         } else {
             this.frame = (frames % this.period === 0) ? (this.frame + 1) % this.animation.length : this.frame; 
         }
+    },
+
+    draw() {
+        let bird = this.animation[this.frame];
+        ctx.save();
+        ctx.translate(this.x, this.y);
+        ctx.rotate(this.rotation);
+        ctx.drawImage(sprite, bird.sX, bird.sY, this.w, this.h, -this.w / 2, -this.h / 2, this.w, this.h);
+        ctx.restore();
+    },
+
+    flap() {
+        this.speed -= this.jump;
     }
 }
 
@@ -195,12 +225,15 @@ const pipes = {
     w: 52,
     h: 400,
     // gap: 85,
-    gap: 150,
+    gap: 100,
     dX: 2,
     maxYPos: -150,
 
+    reset() {
+        this.positions.length = 0;
+    },
+
     update() {
-        if (gameState.current === gameState.over) this.positions.length = 0;
         if (gameState.current !== gameState.game) return;
         if (frames % 100 === 0) {
             this.positions.push(
@@ -216,15 +249,31 @@ const pipes = {
             const birdWidth = bird.h;
             // Check if pipe collided with bird
             // Top pipe
-            if (bird.x + birdWidth > position.x 
-                    && bird.y < position.y + this.h 
-                    && bird.x < position.x + this.w
-                    && bird.y + bird.h > position.y
-                || bird.x + birdWidth > position.x 
-                    && bird.y + bird.h > bottomPipeY
-                    && bird.x < position.x + this.w
-                    && bird.y < bottomPipeY + this.h) {
+            if (
+                // Right of bird
+                bird.x + birdWidth > position.x
+                // Left of bird
+                && bird.x < position.x + this.w
+                // Top of bird
+                && bird.y < position.y + this.h
+                // Bottom of bird
+                && bird.y + bird.h > position.y
+            // Bottom pipe
+                // Right of bird
+                || bird.x + birdWidth > position.x
+                // Left of bird
+                && bird.x < position.x + this.w
+                // Top of bird
+                && bird.y < bottomPipeY + this.h
+                // Bottom of bird
+                && bird.y + bird.h > bottomPipeY) {
+
                 gameState.current = gameState.over;
+                hitSound.play();
+                deathSound.play();
+
+                score.best = Math.max(score.best, score.value);
+                localStorage.setItem("best", score.best);
             }
 
             position.x -= this.dX;
@@ -234,6 +283,7 @@ const pipes = {
         if (this.positions.length > 0 && this.positions[0].x + this.w <= 0) {
             this.positions.shift();
             score.value += 1;
+            scoreSound.play();
         }
     },
 
@@ -279,9 +329,9 @@ const medals = {
         if (gameState.current === gameState.over) {
             let metal;
             if (score.value >= 10) metal = this.bronze;
-            if (score.value >= 50) metal = this.silver;
-            if (score.value >= 100) metal = this.gold;
-            if (score.value >= 200) metal = this.platinum;
+            if (score.value >= 25) metal = this.silver;
+            if (score.value >= 50) metal = this.gold;
+            if (score.value >= 100) metal = this.platinum;
             if (score.value >= 10) {
                 ctx.drawImage(sprite, metal.sX, metal.sY, this.w, this.h, this.x, this.y, this.w, this.h);
             }
@@ -293,7 +343,6 @@ function update() {
     bird.update();
     foreground.update();
     pipes.update();
-    score.update();
 }
 
 function draw() {
@@ -320,10 +369,13 @@ function loop() {
 cvs.addEventListener("click", (e) => {
     switch (gameState.current) {
         case gameState.getReady:
+            swooshingSound.play();
             gameState.current = gameState.game;
             break;
         case gameState.game:
             bird.flap();
+            flapSound.currentTime = 0;
+            flapSound.play();
             break;
         case gameState.over:
             const click = {
@@ -331,6 +383,9 @@ cvs.addEventListener("click", (e) => {
                 y: e.y - e.target.offsetTop,
             }
             if (click.x > 135 && click.x < 215 && click.y > 260 && click.y < 283) {
+                pipes.reset();
+                score.reset();
+                bird.speedReset();
                 gameState.current = gameState.getReady;
             }
             break;
