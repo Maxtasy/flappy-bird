@@ -333,9 +333,9 @@ const medals = {
         if (gameState.current === gameState.over) {
             let metal;
             if (score.value >= 10) metal = this.bronze;
-            if (score.value >= 25) metal = this.silver;
-            if (score.value >= 50) metal = this.gold;
-            if (score.value >= 100) metal = this.platinum;
+            if (score.value >= 20) metal = this.silver;
+            if (score.value >= 30) metal = this.gold;
+            if (score.value >= 40) metal = this.platinum;
             if (score.value >= 10) {
                 ctx.drawImage(sprite, metal.sX, metal.sY, this.w, this.h, this.x, this.y, this.w, this.h);
             }
