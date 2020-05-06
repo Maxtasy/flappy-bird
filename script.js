@@ -117,6 +117,7 @@ const bird = {
     h: 24,
     x: 50,
     y: 185,
+    radius: 12,
     frame: 0,
     period: 10,
     speed: 0,
@@ -148,7 +149,11 @@ const bird = {
                 }
             }
 
-            //TODO: Stop bird from flying over pipes
+            // Stop bird from flying over pipes
+            if (this.y <= 0 && gameState.current === gameState.game) {
+                gameState.current = gameState.over;
+                deathSound.play();
+            }
 
             if (this.speed >= this.jump) {
                 this.rotation = 90 * RADIAN_CONVERSION;
@@ -245,28 +250,27 @@ const pipes = {
         }
         this.positions.forEach(position => {
             const bottomPipeY = position.y + this.h + this.gap;
-            // For simplicity we shorten the hitbox of the bird
-            const birdWidth = bird.h;
+
             // Check if pipe collided with bird
             // Top pipe
             if (
                 // Right of bird
-                bird.x + birdWidth > position.x
+                bird.x + bird.radius > position.x
                 // Left of bird
-                && bird.x < position.x + this.w
+                && bird.x - bird.radius < position.x + this.w
                 // Top of bird
-                && bird.y < position.y + this.h
+                && bird.y - bird.radius < position.y + this.h
                 // Bottom of bird
-                && bird.y + bird.h > position.y
+                && bird.y + bird.radius > position.y
             // Bottom pipe
                 // Right of bird
-                || bird.x + birdWidth > position.x
+                || bird.x + bird.radius > position.x
                 // Left of bird
-                && bird.x < position.x + this.w
+                && bird.x - bird.radius < position.x + this.w
                 // Top of bird
-                && bird.y < bottomPipeY + this.h
+                && bird.y - bird.radius < bottomPipeY + this.h
                 // Bottom of bird
-                && bird.y + bird.h > bottomPipeY) {
+                && bird.y + bird.radius > bottomPipeY) {
 
                 gameState.current = gameState.over;
                 hitSound.play();
